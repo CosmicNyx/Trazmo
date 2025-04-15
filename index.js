@@ -1,4 +1,4 @@
-import { registerCustomElements } from "./components/customElements.js";
+import { registerCustomElements } from "./js/components/customElements";
 
 registerCustomElements();
 
