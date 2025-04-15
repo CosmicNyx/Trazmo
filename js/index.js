@@ -1,75 +1,122 @@
-import { registerCustomElements } from "./components/customElements";
+import { registerCustomElements } from './components/customElements.js';
 
 registerCustomElements();
 
-document.querySelectorAll(".faq-question").forEach((question) => {
-  question.addEventListener("click", () => {
-    const item = question.parentElement;
-    item.classList.toggle("active");
 
-    // Close other open items (optional)
-    document.querySelectorAll(".faq-item").forEach((otherItem) => {
-      if (otherItem !== item && otherItem.classList.contains("active")) {
-        otherItem.classList.remove("active");
-      }
+
+document.querySelectorAll('.faq-question').forEach(question => {
+    question.addEventListener('click', () => {
+      const item = question.parentElement;
+      item.classList.toggle('active');
+      
+      // Close other open items (optional)
+      document.querySelectorAll('.faq-item').forEach(otherItem => {
+        if (otherItem !== item && otherItem.classList.contains('active')) {
+          otherItem.classList.remove('active');
+        }
+      });
     });
   });
-});
 
-document.addEventListener('DOMContentLoaded', () => {
-  const track = document.querySelector('.slider-track');
-  const dots = document.querySelectorAll('.dot');
-  let currentSlide = 0, startX = 0;
 
-  // Handle drag/swipe
-  track.addEventListener('mousedown', startDrag);
-  track.addEventListener('touchstart', startDrag, {passive: true});
+  document.addEventListener('DOMContentLoaded', function() {
+    const slider = document.querySelector('.slider-container');
+    const track = document.querySelector('.slider-track');
+    const slides = document.querySelectorAll('.slide');
+    const dots = document.querySelectorAll('.dot');
+    
+    let isDragging = false;
+    let startPos = 0;
+    let currentTranslate = 0;
+    let prevTranslate = 0;
+    let currentIndex = 0;
+    let animationID;
   
-  function startDrag(e) {
-    startX = e.clientX || e.touches[0].clientX;
-    track.style.transition = 'none';
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('touchmove', drag, {passive: true});
-    document.addEventListener('mouseup', endDrag);
-    document.addEventListener('touchend', endDrag);
-  }
-
-  function drag(e) {
-    const x = e.clientX || e.touches[0].clientX;
-    const diff = x - startX;
-    track.style.transform = `translateX(calc(${currentSlide * -100}% + ${diff}px))`;
-  }
-
-  function endDrag(e) {
-    const x = e.clientX || e.changedTouches[0].clientX;
-    const diff = x - startX;
-    
-    if (Math.abs(diff) > 100) { // Minimum swipe distance
-      if (diff < 0 && currentSlide < 2) currentSlide++; // Swipe left
-      if (diff > 0 && currentSlide > 0) currentSlide--; // Swipe right
-    }
-    
-    updateSlider();
-    document.removeEventListener('mousemove', drag);
-    document.removeEventListener('touchmove', drag);
-  }
-
-  // Dot navigation
-  dots.forEach((dot, i) => {
-    dot.addEventListener('click', () => {
-      currentSlide = i;
-      updateSlider();
+    // Touch events
+    slides.forEach((slide, index) => {
+      // Touch events
+      slide.addEventListener('touchstart', touchStart(index));
+      slide.addEventListener('touchend', touchEnd);
+      slide.addEventListener('touchmove', touchMove);
+      
+      // Mouse events
+      slide.addEventListener('mousedown', touchStart(index));
+      slide.addEventListener('mouseup', touchEnd);
+      slide.addEventListener('mouseleave', touchEnd);
+      slide.addEventListener('mousemove', touchMove);
     });
+  
+    // Dot navigation
+    dots.forEach(dot => {
+      dot.addEventListener('click', function() {
+        const index = parseInt(this.getAttribute('data-index'));
+        goToSlide(index);
+      });
+    });
+  
+    function touchStart(index) {
+      return function(event) {
+        currentIndex = index;
+        startPos = getPositionX(event);
+        isDragging = true;
+        slider.classList.add('grabbing');
+        
+        // Cancel any ongoing animations
+        cancelAnimationFrame(animationID);
+      }
+    }
+  
+    function touchEnd() {
+      isDragging = false;
+      slider.classList.remove('grabbing');
+      
+      const movedBy = currentTranslate - prevTranslate;
+      
+      // Snap to slide if moved enough
+      if (movedBy < -100 && currentIndex < slides.length - 1) {
+        currentIndex += 1;
+      }
+      
+      if (movedBy > 100 && currentIndex > 0) {
+        currentIndex -= 1;
+      }
+      
+      goToSlide(currentIndex);
+    }
+  
+    function touchMove(event) {
+      if (isDragging) {
+        const currentPosition = getPositionX(event);
+        currentTranslate = prevTranslate + currentPosition - startPos;
+      }
+    }
+  
+    function getPositionX(event) {
+      return event.type.includes('mouse') ? event.pageX : event.touches[0].clientX;
+    }
+  
+    function goToSlide(index) {
+      currentIndex = index;
+      prevTranslate = currentIndex * -slider.offsetWidth;
+      currentTranslate = prevTranslate;
+      
+      // Update track position
+      track.style.transform = `translateX(${currentTranslate}px)`;
+      
+      // Update dots
+      updateDots();
+    }
+  
+    function updateDots() {
+      dots.forEach(dot => dot.classList.remove('active'));
+      dots[currentIndex].classList.add('active');
+    }
+  
+    // Initialize
+    function init() {
+      track.style.transform = 'translateX(0)';
+      updateDots();
+    }
+  
+    init();
   });
-
-  // Update slider position
-  function updateSlider() {
-    track.style.transition = 'transform 0.4s ease';
-    track.style.transform = `translateX(${currentSlide * -100}%)`;
-    dots.forEach(dot => dot.classList.remove('active'));
-    dots[currentSlide].classList.add('active');
-  }
-
-  // Initialize
-  updateSlider();
-});
